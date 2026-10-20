@@ -107,8 +107,19 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         return tileHeightPx + Math.round(ITEM_EXTRA_DP * density);
     }
 
-    /** item_app.xml: 4dp padding above and below, a 4dp gap and the 20dp name label under the tile. */
-    static final float ITEM_EXTRA_DP = 4 + 4 + 4 + 20;
+    /** Space between the (unscaled) tile and its name; the focused name also moves NAME_FOCUS_SHIFT_DP lower. */
+    static final float NAME_GAP_DP = 6;
+    static final float NAME_FOCUS_SHIFT_DP = 4;
+    /** item_app.xml: 4dp padding above and below, the gap and the 20dp name label under the tile. */
+    static final float ITEM_EXTRA_DP = 4 + 4 + NAME_GAP_DP + 20;
+
+    /**
+     * The name's vertical offset: lower when focused, clear of the tile's FOCUS_SCALE growth (5% of its height
+     * each side) and its rim; a little higher when hidden, so the full motion can slide it down into place.
+     */
+    static float nameShiftPx(boolean focused, float density) {
+        return (focused ? NAME_FOCUS_SHIFT_DP : -6f) * density;
+    }
     /** Room kept under the last visible row (MainActivity's dock placement uses the same). */
     static final float BOTTOM_ROOM_DP = 16;
     /** Without a dock row: room above the first row for its focus scale and glow (MainActivity uses the same). */
@@ -242,7 +253,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         View name = v.findViewById(R.id.name);
         ViewGroup.MarginLayoutParams nameLp = (ViewGroup.MarginLayoutParams) name.getLayoutParams();
         nameLp.width = w;
-        nameLp.topMargin = h + Math.round(4 * density);
+        nameLp.topMargin = h + Math.round(NAME_GAP_DP * density);
         name.setLayoutParams(nameLp);
         return new Holder(v, listener, reducedMotion);
     }
@@ -254,6 +265,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         h.name.setVisibility(dockRow && position < dockSize ? View.INVISIBLE : View.VISIBLE);   // the dock has no labels
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
         h.name.setAlpha(focused ? 1f : 0f);
+        h.name.setTranslationY(nameShiftPx(focused, h.name.getResources().getDisplayMetrics().density));
         h.card.setScaleX(focused ? FOCUS_SCALE : 1f);
         h.card.setScaleY(focused ? FOCUS_SCALE : 1f);
         if (e.banner != null) {
@@ -428,6 +440,8 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                             .setInterpolator(new DecelerateInterpolator())
                             .start();
                     name.setAlpha(focused ? 1f : 0f);
+                    // Straight to where the full motion slides it: below the grown tile, not touching it.
+                    name.setTranslationY(nameShiftPx(focused, density));
                 } else {
                     view.animate().scaleX(s).scaleY(s)
                             .setDuration(focused ? 260 : 180)
@@ -435,7 +449,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                             .withLayer()
                             .start();
                     name.animate().alpha(focused ? 1f : 0f)
-                            .translationY(focused ? density * 4f : -density * 6f)
+                            .translationY(nameShiftPx(focused, density))
                             .setDuration(220).start();
                 }
                 int pos = getBindingAdapterPosition();
