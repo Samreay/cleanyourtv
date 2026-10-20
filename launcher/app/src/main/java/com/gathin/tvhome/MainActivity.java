@@ -128,6 +128,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean rebuildOnResume = true;
     /** The Inputs or Module cards dropdown while one is open, so onPause can close it. */
     private PopupWindow openPopup;
+    /** config.xml settings_key_keycodes: remote keys that open Settings (read once). */
+    private int[] settingsKeycodes = new int[0];
     /** Reorder mode is on (top-bar button). */
     private boolean reordering;
     /** Key of the tile being carried in reorder mode, or null. */
@@ -277,6 +279,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     AnimationUtils.loadAnimation(this, R.anim.tile_enter), 0.06f));
         }
         adapter = new AppAdapter(this, this, COLUMNS, cfg);
+        settingsKeycodes = getResources().getIntArray(R.array.settings_key_keycodes);
         dockApps = cfg.dockApps;
         adapter.setSavedOrder(Order.ranks(Order.load(Order.file(this)), dockApps));
         grid.setAdapter(adapter);
@@ -581,6 +584,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // A Settings button by keycode (config.xml settings_key_keycodes, e.g. 83 on TCL Google TV remotes) opens
+        // Settings from Home too. HomeKeyService catches it in other apps, but injected keys skip accessibility
+        // and the stock launcher that handled it is disabled.
+        if (isSettingsKeycode(event.getKeyCode())) {
+            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled() && !reordering) {
+                open(systemIntent(Settings.ACTION_SETTINGS));
+            }
+            return true;
+        }
         if (!reordering) return super.dispatchKeyEvent(event);
         boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
         int code = event.getKeyCode();
@@ -613,6 +625,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return true;   // never opens the app while reordering
         }
         return super.dispatchKeyEvent(event);   // arrows navigate; OK on a top-bar pill works as usual
+    }
+
+    private boolean isSettingsKeycode(int keyCode) {
+        for (int code : settingsKeycodes) if (code == keyCode) return true;
+        return false;
     }
 
     /** Adapter position of the focused tile, or -1 when focus is not on a tile. */

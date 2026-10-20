@@ -108,7 +108,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     }
 
     /** Space between the (unscaled) tile and its name; the focused name also moves NAME_FOCUS_SHIFT_DP lower. */
-    static final float NAME_GAP_DP = 6;
+    static final float NAME_GAP_DP = 2.5f;
     static final float NAME_FOCUS_SHIFT_DP = 4;
     /** item_app.xml: 4dp padding above and below, the gap and the 20dp name label under the tile. */
     static final float ITEM_EXTRA_DP = 4 + 4 + NAME_GAP_DP + 20;
