@@ -89,6 +89,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private View ambient;
     private TextView heroName;
     private int ambientColor = -1;
+    /** Recent glow textures by colour (setAmbient); 12 × 240×135 ARGB is about 1.5 MB. */
+    private final android.util.LruCache<Integer, BitmapDrawable> glowCache = new android.util.LruCache<>(12);
     private boolean heroShown;
     private TextView greeting;
     private View btnInputs;
@@ -568,7 +570,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             showHero(position, scroll ? r.top - dy : r.top);
         } else {
-            hideHero();
+            showGlowOnly(position);
             // Scroll just enough so the whole glass (not only the tile) is visible.
             Rect want = new Rect(0, -(int) pad * 2, item.getWidth(), item.getHeight() + (int) pad);
             grid.requestChildRectangleOnScreen(item, want, reducedMotion);
@@ -633,9 +635,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void setAmbient(int color) {
         if (color == ambientColor && ambient.getBackground() != null) return;
         ambientColor = color;
+        // Grid tiles change the glow on every move, so keep the recent ones: going back to an app reuses
+        // its texture instead of rasterising and uploading a new bitmap on the UI thread.
+        BitmapDrawable cached = glowCache.get(color);
+        if (cached != null) {
+            ambient.setBackground(cached);
+            return;
+        }
         int c = color & 0x00FFFFFF;
-        int w = 480;
-        int h = 270;
+        // A soft glow stretched over the screen: a quarter of the old 480×270 looks the same once filtered.
+        int w = 240;
+        int h = 135;
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bmp);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -647,7 +657,37 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         canvas.drawRect(0, 0, w, h, paint);
         BitmapDrawable drawable = new BitmapDrawable(getResources(), bmp);
         drawable.setGravity(Gravity.FILL);
+        glowCache.put(color, drawable);
         ambient.setBackground(drawable);
+    }
+
+    /**
+     * Grid tiles: the name above the dock goes (the tile shows its own name underneath), but the glow
+     * stays and takes the focused tile's colour, so the screen behind the grid is never plain black.
+     */
+    private void showGlowOnly(int position) {
+        int color = adapter.ambientColorAt(position);
+        if (heroShown) {
+            heroShown = false;
+            heroName.animate().cancel();
+            if (reducedMotion) heroName.setAlpha(0f);
+            else heroName.animate().alpha(0f).setDuration(160).start();
+        }
+        ambient.animate().cancel();
+        if (reducedMotion) {
+            setAmbient(color);
+            ambient.setAlpha(1f);
+            return;
+        }
+        if (color == ambientColor) {
+            ambient.animate().alpha(1f).setDuration(300).start();
+            return;
+        }
+        // Same dip-and-swap as the dock's top shelf.
+        ambient.animate().alpha(0.35f).setDuration(ambient.getAlpha() > 0.35f ? 200 : 0).withEndAction(() -> {
+            setAmbient(color);
+            ambient.animate().alpha(1f).setDuration(500).start();
+        }).start();
     }
 
     private void hideHero() {
