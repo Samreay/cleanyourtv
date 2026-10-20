@@ -80,7 +80,7 @@
 
     <!-- Backdrop behind the tiles, in the focused app's colour: glow (soft radial glow), aurora (two soft blobs,
          the app colour and a hue-shifted partner) or horizon (the colour washing down from the top edge to black). -->
-    <string name="background_style" translatable="false">glow</string>
+    <string name="background_style" translatable="false">horizon</string>
 
     <!-- The focused dock app's name in large type above the dock. false leaves only the glow, which frees the
          space above the dock for more rows. -->
