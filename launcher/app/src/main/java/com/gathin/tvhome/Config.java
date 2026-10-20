@@ -48,6 +48,8 @@ final class Config {
     final boolean dockTitle;
     /** The dock as its own row (band, no names, parked low). false: dock apps are just the first tiles of the grid. */
     final boolean dockRow;
+    /** Backdrop behind the tiles (config.xml background_style): glow, aurora or horizon (Backdrop). */
+    final String backgroundStyle;
     final String vpnApp;
     final boolean showHomeSettingsShortcut;
     /** Background colour behind everything, #RRGGBB; black unless a theme says otherwise. */
@@ -60,7 +62,7 @@ final class Config {
     private Config(List<String> dockApps, List<String> hiddenApps, String liveTvPackage, String liveTvAction,
                    String sourcePanelService, String sourcePanelAction, String inputAction,
                    int columns, int rowsBelowDock,
-                   boolean shamsiDate, boolean moduleCards, boolean reducedMotion, boolean dockTitle, boolean dockRow, String vpnApp,
+                   boolean shamsiDate, boolean moduleCards, boolean reducedMotion, boolean dockTitle, boolean dockRow, String backgroundStyle, String vpnApp,
                    boolean showHomeSettingsShortcut, int backgroundColor,
                    File wallpaper, boolean overlayApplied) {
         this.dockApps = Collections.unmodifiableList(dockApps);
@@ -77,6 +79,7 @@ final class Config {
         this.reducedMotion = reducedMotion;
         this.dockTitle = dockTitle;
         this.dockRow = dockRow;
+        this.backgroundStyle = Backdrop.normalise(backgroundStyle);
         this.vpnApp = vpnApp;
         this.showHomeSettingsShortcut = showHomeSettingsShortcut;
         this.backgroundColor = backgroundColor;
@@ -105,6 +108,7 @@ final class Config {
         boolean reducedMotion = res.getBoolean(R.bool.reduced_motion);
         boolean dockTitle = res.getBoolean(R.bool.dock_title);
         boolean dockRow = res.getBoolean(R.bool.dock_row);
+        String backgroundStyle = res.getString(R.string.background_style);
         String vpn = res.getString(R.string.vpn_app).trim();
         boolean homeSettings = res.getBoolean(R.bool.show_home_settings_shortcut);
         int background = 0xFF000000;
@@ -129,6 +133,7 @@ final class Config {
             reducedMotion = bool(json, "reduced_motion", reducedMotion);
             dockTitle = bool(json, "dock_title", dockTitle);
             dockRow = bool(json, "dock_row", dockRow);
+            backgroundStyle = string(json, "background_style", backgroundStyle);
             vpn = string(json, "vpn_app", vpn);
             homeSettings = bool(json, "show_home_settings_shortcut", homeSettings);
             background = color(json, "background_color", background);
@@ -139,7 +144,7 @@ final class Config {
         if (json != null && json.has("wallpaper") && !bool(json, "wallpaper", true)) wallpaper = null;
 
         return new Config(dock, hidden, liveTv, liveTvAction, panelService, panelAction, inputAction,
-                Math.max(1, columns), Math.max(0, rowsBelow), shamsi, moduleCards, reducedMotion, dockTitle, dockRow,
+                Math.max(1, columns), Math.max(0, rowsBelow), shamsi, moduleCards, reducedMotion, dockTitle, dockRow, backgroundStyle,
                 vpn, homeSettings, background, wallpaper, applied);
     }
 

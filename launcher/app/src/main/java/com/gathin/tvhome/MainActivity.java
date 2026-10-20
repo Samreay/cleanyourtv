@@ -89,6 +89,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private View ambient;
     private TextView heroName;
     private int ambientColor = -1;
+    /** config.xml background_style (Backdrop). */
+    private String backdropStyle = Backdrop.GLOW;
     /** Recent glow textures by colour (setAmbient); 12 × 240×135 ARGB is about 1.5 MB. */
     private final android.util.LruCache<Integer, BitmapDrawable> glowCache = new android.util.LruCache<>(12);
     private boolean heroShown;
@@ -222,6 +224,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // The glow is one bitmap, so its alpha can be applied while drawing it. Otherwise every frame of
         // a fade renders it into a full-screen offscreen buffer first (upstream 4cc83ce).
         ambient.forceHasOverlappingRendering(false);
+        backdropStyle = cfg.backgroundStyle;
         heroName = findViewById(R.id.heroName);
         // dock_title false: the name above the dock never shows; showHero still moves the glow.
         if (!cfg.dockTitle) heroName.setVisibility(View.GONE);
@@ -879,20 +882,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             ambient.setBackground(cached);
             return;
         }
-        int c = color & 0x00FFFFFF;
-        // A soft glow stretched over the screen: a quarter of the old 480×270 looks the same once filtered.
-        int w = 240;
-        int h = 135;
-        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bmp);
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setShader(new RadialGradient(
-                w * 0.32f, h * 0.42f, w * 0.62f,
-                new int[]{0x5C000000 | c, 0x26000000 | c, 0x00000000 | c},
-                new float[]{0f, 0.45f, 1f},
-                Shader.TileMode.CLAMP));
-        canvas.drawRect(0, 0, w, h, paint);
-        BitmapDrawable drawable = new BitmapDrawable(getResources(), bmp);
+        BitmapDrawable drawable = new BitmapDrawable(getResources(), Backdrop.colourLayer(backdropStyle, color));
         drawable.setGravity(Gravity.FILL);
         glowCache.put(color, drawable);
         ambient.setBackground(drawable);

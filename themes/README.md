@@ -37,6 +37,7 @@ is ignored, and a file that doesn't parse is ignored as a whole, so a theme can 
 | `reduced_motion` | bool | Snappy, minimal motion for weak GPUs: critically damped highlight, short zoom, no fades, no tile entrance |
 | `vpn_app` | string | App the network pill opens when a VPN is configured; also shows a red "VPN off" badge while no VPN is up |
 | `show_home_settings_shortcut` | bool | The "Default home" tile, where the TV has a home picker |
+| `background_style` | `glow`, `aurora` or `horizon` | Backdrop behind the tiles in the focused app's colour: radial glow, two soft blobs, or a wash from the top edge to black |
 | `background_color` | `#RRGGBB` | Colour behind everything; black by default |
 | `wallpaper` | bool | Show `wallpaper.jpg` from the theme folder (`true`), or ignore it (`false`) |
 
