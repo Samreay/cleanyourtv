@@ -23,13 +23,14 @@ is ignored, and a file that doesn't parse is ignored as a whole, so a theme can 
 
 | Key | Type | Meaning |
 |---|---|---|
-| `dock_apps` | list of package names | The dock row, in order; missing apps are skipped |
+| `dock_apps` | list of package names | Apps pinned first, in order (the dock row, or the first grid tiles with `dock_row` off); any number; the rest follow alphabetically; missing apps are skipped |
 | `hidden_apps` | list of package names | Never shown as tiles |
 | `live_tv_package`, `live_tv_action` | string | The Live TV app and, if it has no leanback entry, the action to start it with |
 | `source_panel_service`, `source_panel_action` | string | The TV's own source panel, for sets with no TvInputManager |
 | `input_action` | string | Action sent with an HDMI/AV row's channel URI when nothing handles the standard `VIEW` (XGIMI: `com.xgimi.action.hdmiPlayer`) |
 | `columns` | 1 to 8 | Tiles per row; tiles shrink to fit from 5 up |
 | `rows_below_dock` | 0 to 3 | Grid rows left visible under the dock; tiles shrink if the dock and that many rows would not fit the screen height |
+| `dock_row` | bool | The dock as its own row with a band (`true`); `false` makes the dock apps the first tiles of one plain grid |
 | `dock_title` | bool | The focused dock app's name in large type above the dock (`true`); `false` keeps only the glow |
 | `shamsi_date` | bool | Show the Solar Hijri date above the Gregorian one |
 | `module_cards` | bool | Look for module cards and ask about them (`true`); `false` turns the feature off |

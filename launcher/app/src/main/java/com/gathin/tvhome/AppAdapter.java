@@ -111,15 +111,19 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     static final float ITEM_EXTRA_DP = 4 + 4 + 4 + 20;
     /** Room kept under the last visible row (MainActivity's dock placement uses the same). */
     static final float BOTTOM_ROOM_DP = 16;
+    /** Without a dock row: room above the first row for its focus scale and glow (MainActivity uses the same). */
+    static final float TOP_ROOM_DP = 12;
 
     /**
-     * Tile width that fits both the columns across and, with rows_below_dock > 0, the dock plus that many rows
-     * down the grid's height; whichever is smaller wins. gridHeightPx <= 0 (not laid out yet) skips the height.
+     * Tile width that fits both the columns across and, with rows_below_dock > 0, the first row (the dock, when
+     * dock_row is on) plus that many rows down the grid's height; whichever is smaller wins. gridHeightPx <= 0
+     * (not laid out yet) skips the height.
      */
-    static int tileWidthPx(int innerWidthPx, int gridHeightPx, int columns, int rowsBelowDock, float density) {
+    static int tileWidthPx(int innerWidthPx, int gridHeightPx, int columns, int rowsBelowDock, boolean dockRow,
+                           float density) {
         int w = tileWidthPx(innerWidthPx, columns, density);
         if (gridHeightPx <= 0 || rowsBelowDock <= 0) return w;
-        float dockExtra = (6 + 12) * density;   // DockDecoration offsets
+        float dockExtra = dockRow ? (6 + 12) * density : TOP_ROOM_DP * density;   // DockDecoration offsets, or the grid's top room
         float perItem = (gridHeightPx - dockExtra - BOTTOM_ROOM_DP * density) / (rowsBelowDock + 1);
         float tileH = perItem - ITEM_EXTRA_DP * density;
         int byHeight = Math.round(tileH * DESIGN_W_DP / DESIGN_H_DP);
@@ -137,6 +141,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): no overshoot, shorter fades. */
     private final boolean reducedMotion;
     private final int rowsBelowDock;
+    private final boolean dockRow;
     private final List<Entry> items = new ArrayList<>();
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
@@ -148,6 +153,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         this.showHomeSettings = cfg.showHomeSettingsShortcut;
         this.reducedMotion = cfg.reducedMotion;
         this.rowsBelowDock = cfg.rowsBelowDock;
+        this.dockRow = cfg.dockRow;
         // Tiles keep their identity across reload(), so a focused tile stays on its app instead of
         // its view being rebound to whatever app now sits in that slot.
         setHasStableIds(true);
@@ -227,7 +233,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         float density = parent.getResources().getDisplayMetrics().density;
         int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
         int inner = width - parent.getPaddingLeft() - parent.getPaddingRight();
-        int w = tileWidthPx(inner, parent.getHeight(), dockSize, rowsBelowDock, density), h = tileHeightPx(w);
+        int w = tileWidthPx(inner, parent.getHeight(), dockSize, rowsBelowDock, dockRow, density), h = tileHeightPx(w);
         View card = v.findViewById(R.id.card);
         ViewGroup.LayoutParams cardLp = card.getLayoutParams();
         cardLp.width = w;
@@ -245,7 +251,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     public void onBindViewHolder(@NonNull Holder h, int position) {
         Entry e = items.get(position);
         h.name.setText(e.name);
-        h.name.setVisibility(position < dockSize ? View.INVISIBLE : View.VISIBLE);   // the dock has no labels
+        h.name.setVisibility(dockRow && position < dockSize ? View.INVISIBLE : View.VISIBLE);   // the dock has no labels
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
         h.name.setAlpha(focused ? 1f : 0f);
         h.card.setScaleX(focused ? FOCUS_SCALE : 1f);

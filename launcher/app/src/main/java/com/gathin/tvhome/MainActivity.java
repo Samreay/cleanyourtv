@@ -114,6 +114,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean moduleCards;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     private boolean reducedMotion;
+    /** config.xml dock_row: the first row is a separate dock (band, parked low, top shelf) rather than plain grid. */
+    private boolean dockRow;
     /** hidden_apps as the adapter sees them (config.xml or a theme's config.json): a hidden app gets no card either. */
     private Set<String> hiddenApps = Collections.emptySet();
     private List<Cards.Card> cards = Collections.emptyList();
@@ -190,6 +192,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         Config cfg = Config.load(this);
         COLUMNS = cfg.columns;
         reducedMotion = cfg.reducedMotion;
+        dockRow = cfg.dockRow;
         liveTvPkg = cfg.liveTvPackage;
         liveTvAction = cfg.liveTvAction;
         inputAction = cfg.inputAction;
@@ -235,7 +238,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             public boolean requestChildRectangleOnScreen(@NonNull RecyclerView parent, @NonNull View child,
                                                          @NonNull Rect rect, boolean immediate,
                                                          boolean focusedChildVisible) {
-                if (getPosition(child) < COLUMNS) return false;
+                if (dockRow && getPosition(child) < COLUMNS) return false;
                 int top = child.getTop() + rect.top;
                 int bottom = top + rect.height();
                 // The grid's bottom edge, not its padding: paddingBottom only lets the last row scroll clear of
@@ -253,7 +256,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         grid.setHasFixedSize(true);
         grid.setItemAnimator(null);
-        grid.addItemDecoration(new DockDecoration(COLUMNS, density));
+        if (dockRow) grid.addItemDecoration(new DockDecoration(COLUMNS, density));
         // Reduced motion: tiles are simply there, no entrance.
         if (!reducedMotion) {
             grid.setLayoutAnimation(new LayoutAnimationController(
@@ -269,11 +272,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int h = b - t;
             // Item height follows the tile size, which follows the columns and the rows that must fit (AppAdapter.tileWidthPx).
             int inner = (r - l) - grid.getPaddingLeft() - grid.getPaddingRight();
-            int tileW = AppAdapter.tileWidthPx(inner, h, COLUMNS, rowsBelowDock, density);
+            int tileW = AppAdapter.tileWidthPx(inner, h, COLUMNS, rowsBelowDock, dockRow, density);
             int itemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(tileW), density);
-            int dockRow = itemH + (int) ((6 + 12) * density);   // item height plus DockDecoration offsets
-            int gridRows = itemH * rowsBelowDock;
-            int want = Math.max(0, h - dockRow - gridRows - (int) (AppAdapter.BOTTOM_ROOM_DP * density));
+            int want;
+            if (dockRow) {
+                int dockH = itemH + (int) ((6 + 12) * density);   // item height plus DockDecoration offsets
+                int gridRows = itemH * rowsBelowDock;
+                want = Math.max(0, h - dockH - gridRows - (int) (AppAdapter.BOTTOM_ROOM_DP * density));
+            } else {
+                // No dock to push down: the grid starts at the top, with room for the first row's glow.
+                want = (int) (AppAdapter.TOP_ROOM_DP * density);
+            }
             if (grid.getPaddingTop() != want) {
                 grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), grid.getPaddingBottom());
             }
@@ -562,7 +571,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             springY.animateToFinalPosition(y - glassScrollShift);
         }
         View item = (View) card.getParent();
-        if (position < COLUMNS) {
+        if (dockRow && position < COLUMNS) {
             // Dock: park it at the bottom of the screen and show the top shelf for this app.
             int decoratedTop = item.getTop() - (int) (6 * density);
             int dy = decoratedTop - grid.getPaddingTop();

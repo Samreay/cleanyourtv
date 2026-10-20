@@ -7,7 +7,9 @@
 -->
 <resources>
 
-    <!-- Apps pinned to the dock row at the bottom, in this order. Missing apps are skipped. -->
+    <!-- Apps pinned first, in this order: the dock row, or the first tiles of the grid with dock_row false. List as
+         many as you like (more than one row is fine); every app not listed follows alphabetically. Missing apps
+         are skipped. -->
     <string-array name="dock_apps">
         <item>com.plexapp.android</item>
         <item>com.netflix.ninja</item>
@@ -60,6 +62,11 @@
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. Tiles shrink
          if the dock and this many rows would not otherwise fit the screen height. -->
     <integer name="rows_below_dock">3</integer>
+
+    <!-- The dock as its own row: a lighter band, no names under the tiles, parked low on the screen with the top
+         shelf above it. false makes the dock apps simply the first tiles of one plain grid (still in dock_apps
+         order), with names under every tile and the glow behind every focused tile. -->
+    <bool name="dock_row">true</bool>
 
     <!-- The focused dock app's name in large type above the dock. false leaves only the glow, which frees the
          space above the dock for more rows. -->
