@@ -32,7 +32,7 @@ is ignored, and a file that doesn't parse is ignored as a whole, so a theme can 
 | `rows_below_dock` | 0 to 3 | Grid rows left visible under the dock |
 | `shamsi_date` | bool | Show the Solar Hijri date above the Gregorian one |
 | `module_cards` | bool | Look for module cards and ask about them (`true`); `false` turns the feature off |
-| `reduced_motion` | bool | Calmer motion for weak GPUs: stiff highlight spring, no tile overshoot, short fades, no entrance replay |
+| `reduced_motion` | bool | Snappy, minimal motion for weak GPUs: critically damped highlight, short zoom, no fades, no tile entrance |
 | `vpn_app` | string | App the network pill opens when a VPN is configured; also shows a red "VPN off" badge while no VPN is up |
 | `show_home_settings_shortcut` | bool | The "Default home" tile, where the TV has a home picker |
 | `background_color` | `#RRGGBB` | Colour behind everything; black by default |
@@ -46,9 +46,9 @@ decodes the picture into memory on every Home start. Pictures larger than the sc
 
 ## Reduced motion
 
-`"reduced_motion": true` keeps the look but calms the movement: the highlight spring is stiff instead
-of bouncing, tiles zoom without overshoot, fades are shorter, and Home does not replay the tile
-entrance when you come back to it. Use it on TVs whose GPU cannot keep up; a MediaTek MT5895 on
+`"reduced_motion": true` keeps the look but makes the movement snappy and minimal: the highlight
+spring is very stiff and critically damped (no bounce), tiles zoom briefly without overshoot, names, the
+top shelf and the glow switch instantly instead of fading, and tiles have no entrance animation. Use it on TVs whose GPU cannot keep up; a MediaTek MT5895 on
 Android 10 is the known case. The default, `false`, keeps the normal motion.
 
 ```json

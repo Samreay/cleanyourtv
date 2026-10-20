@@ -395,13 +395,12 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
                 view.animate().cancel();
                 name.animate().cancel();
                 if (reducedMotion) {
-                    // No overshoot: the extra frames redraw the banner and the dock band on a weak GPU.
+                    // Short zoom, no overshoot; the name just appears.
                     view.animate().scaleX(s).scaleY(s)
-                            .setDuration(focused ? 120 : 80)
+                            .setDuration(focused ? 90 : 60)
                             .setInterpolator(new DecelerateInterpolator())
-                            .withLayer()
                             .start();
-                    name.animate().alpha(focused ? 1f : 0f).setDuration(100).start();
+                    name.setAlpha(focused ? 1f : 0f);
                 } else {
                     view.animate().scaleX(s).scaleY(s)
                             .setDuration(focused ? 260 : 180)

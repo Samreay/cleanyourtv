@@ -196,6 +196,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         root = findViewById(R.id.root);
         root.setBackgroundColor(cfg.backgroundColor);
+        // root paints the whole screen opaque, so the window's own black fill is pure overdraw.
+        getWindow().setBackgroundDrawable(null);
         if (cfg.wallpaper != null) showWallpaper(cfg.wallpaper);
         glass = findViewById(R.id.glass);
         ambient = findViewById(R.id.ambient);
@@ -219,10 +221,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         grid.setHasFixedSize(true);
         grid.setItemAnimator(null);
         grid.addItemDecoration(new DockDecoration(COLUMNS, density));
-        int enterAnim = reducedMotion ? R.anim.tile_enter_reduced : R.anim.tile_enter;
-        float enterDelay = reducedMotion ? 0f : 0.06f;
-        grid.setLayoutAnimation(new LayoutAnimationController(
-                AnimationUtils.loadAnimation(this, enterAnim), enterDelay));
+        // Reduced motion: tiles are simply there, no entrance.
+        if (!reducedMotion) {
+            grid.setLayoutAnimation(new LayoutAnimationController(
+                    AnimationUtils.loadAnimation(this, R.anim.tile_enter), 0.06f));
+        }
         adapter = new AppAdapter(this, this, COLUMNS, cfg);
         grid.setAdapter(adapter);
 
@@ -268,10 +271,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         for (SpringAnimation s : new SpringAnimation[]{springX, springY}) {
             if (reducedMotion) {
-                // Stiff and almost critically damped: settles in a few frames instead of oscillating,
-                // and stops once the highlight is within 1.5 px of its tile.
-                s.setSpring(new SpringForce().setStiffness(1400f).setDampingRatio(0.95f));
-                s.setMinimumVisibleChange(1.5f);
+                // Very stiff and critically damped: no wobble, settles in about 5 frames, and stops
+                // once the highlight is within 2 px of its tile.
+                s.setSpring(new SpringForce().setStiffness(4000f).setDampingRatio(1f));
+                s.setMinimumVisibleChange(2f);
             } else {
                 s.setSpring(new SpringForce().setStiffness(260f).setDampingRatio(0.58f));
             }
@@ -517,7 +520,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             springY.cancel();
             glass.setTranslationX(x);
             glass.setTranslationY(y);
-            glass.animate().alpha(1f).setDuration(reducedMotion ? 100 : 180).start();
+            if (reducedMotion) glass.setAlpha(1f);
+            else glass.animate().alpha(1f).setDuration(180).start();
             glassShown = true;
         } else {
             springX.animateToFinalPosition(x);
@@ -561,11 +565,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             heroName.setTranslationX(0f);
             heroName.setAlpha(1f);
             setAmbient(color);
-            if (!heroShown) {
-                ambient.setAlpha(0f);
-                ambient.animate().alpha(1f).setDuration(160).start();
-                heroShown = true;
-            }
+            ambient.animate().cancel();
+            ambient.setAlpha(1f);
+            heroShown = true;
             return;
         }
 
@@ -624,14 +626,26 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void hideHero() {
         if (!heroShown) return;
         heroShown = false;
-        heroName.animate().alpha(0f).setDuration(reducedMotion ? 100 : 160).start();
-        ambient.animate().alpha(0f).setDuration(reducedMotion ? 140 : 300).start();
+        if (reducedMotion) {
+            heroName.animate().cancel();
+            ambient.animate().cancel();
+            heroName.setAlpha(0f);
+            ambient.setAlpha(0f);
+            return;
+        }
+        heroName.animate().alpha(0f).setDuration(160).start();
+        ambient.animate().alpha(0f).setDuration(300).start();
     }
 
     private void hideGlass() {
         if (!glassShown) return;
         glassShown = false;
-        glass.animate().alpha(0f).setDuration(160).start();
+        if (reducedMotion) {
+            glass.animate().cancel();
+            glass.setAlpha(0f);
+        } else {
+            glass.animate().alpha(0f).setDuration(160).start();
+        }
     }
 
     // ---- navigation ------------------------------------------------------------------------------
@@ -951,7 +965,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         panel.setScaleY(0.92f);
         panel.setTranslationY(-8 * density);
         popup.showAsDropDown(anchor, 0, (int) (10 * density), gravity);
-        panel.animate().alpha(1f).scaleY(1f).translationY(0f).setDuration(220)
+        panel.animate().alpha(1f).scaleY(1f).translationY(0f).setDuration(reducedMotion ? 90 : 220)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
     }
 
