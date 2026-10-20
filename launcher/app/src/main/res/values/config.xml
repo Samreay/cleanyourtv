@@ -20,6 +20,8 @@
     <!-- Apps never shown as tiles (e.g. the Live TV app, which the Inputs menu already covers). -->
     <string-array name="hidden_apps">
         <item>com.tcl.tv</item>
+        <item>com.tcl.dashboard</item>
+        <item>com.tcl.t_solo</item>
     </string-array>
 
     <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
@@ -57,11 +59,11 @@
     <string name="vpn_app" translatable="false"></string>
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. Tiles shrink
          if the dock and this many rows would not otherwise fit the screen height. -->
-    <integer name="rows_below_dock">1</integer>
+    <integer name="rows_below_dock">3</integer>
 
     <!-- The focused dock app's name in large type above the dock. false leaves only the glow, which frees the
          space above the dock for more rows. -->
-    <bool name="dock_title">true</bool>
+    <bool name="dock_title">false</bool>
 
     <!-- Tiles per row in the grid; the dock always has this many slots. Tiles are 180dp wide at 4 columns and
          shrink to fit from 5 up (about 144dp at 5, 117dp at 6 on a 1080p TV). -->
