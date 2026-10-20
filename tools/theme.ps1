@@ -21,7 +21,9 @@ $pkg = 'com.gathin.tvhome'
 $dir = "/sdcard/Android/data/$pkg/files"
 # Restart Home so it rereads the theme. Android drops a force-stopped app's accessibility services from the
 # enabled list, which would switch off InputKeyService/HomeKeyService, so put the list back if it had ours.
-$restart = "a=`$(settings get secure enabled_accessibility_services); am force-stop $pkg; case `"`$a`" in *$pkg*) settings put secure enabled_accessibility_services `"`$a`" ;; esac; am start -n $pkg/.MainActivity >/dev/null"
+# Writing the same list back is not enough: the force-stop also turns accessibility_enabled off, and the service
+# only binds again once the list changes. So restart first, then clear the list, write it back and switch it on.
+$restart = "a=`$(settings get secure enabled_accessibility_services); am force-stop $pkg; am start -n $pkg/.MainActivity >/dev/null; case `"`$a`" in *$pkg*) settings put secure enabled_accessibility_services ''; settings put secure enabled_accessibility_services `"`$a`"; settings put secure accessibility_enabled 1 ;; esac"
 
 if ($Reset) {
     & $py -I tv.py "rm -f $dir/config.json $dir/wallpaper.jpg; $restart; echo reset"
