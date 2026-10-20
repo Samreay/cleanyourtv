@@ -102,9 +102,28 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         return Math.round(tileWidthPx * DESIGN_H_DP / DESIGN_W_DP);
     }
 
-    /** Height of one grid item: the tile, the name label under it and the item's own padding. */
+    /** Height of one grid item: the tile, the name label under it and the item's own padding (item_app.xml). */
     static int itemHeightPx(int tileHeightPx, float density) {
-        return tileHeightPx + Math.round(45 * density);
+        return tileHeightPx + Math.round(ITEM_EXTRA_DP * density);
+    }
+
+    /** item_app.xml: 4dp padding above and below, a 4dp gap and the 20dp name label under the tile. */
+    static final float ITEM_EXTRA_DP = 4 + 4 + 4 + 20;
+    /** Room kept under the last visible row (MainActivity's dock placement uses the same). */
+    static final float BOTTOM_ROOM_DP = 16;
+
+    /**
+     * Tile width that fits both the columns across and, with rows_below_dock > 0, the dock plus that many rows
+     * down the grid's height; whichever is smaller wins. gridHeightPx <= 0 (not laid out yet) skips the height.
+     */
+    static int tileWidthPx(int innerWidthPx, int gridHeightPx, int columns, int rowsBelowDock, float density) {
+        int w = tileWidthPx(innerWidthPx, columns, density);
+        if (gridHeightPx <= 0 || rowsBelowDock <= 0) return w;
+        float dockExtra = (6 + 12) * density;   // DockDecoration offsets
+        float perItem = (gridHeightPx - dockExtra - BOTTOM_ROOM_DP * density) / (rowsBelowDock + 1);
+        float tileH = perItem - ITEM_EXTRA_DP * density;
+        int byHeight = Math.round(tileH * DESIGN_W_DP / DESIGN_H_DP);
+        return Math.max(Math.round(80 * density), Math.min(w, byHeight));
     }
 
     private final Context ctx;
@@ -117,6 +136,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     private final boolean showHomeSettings;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): no overshoot, shorter fades. */
     private final boolean reducedMotion;
+    private final int rowsBelowDock;
     private final List<Entry> items = new ArrayList<>();
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
@@ -127,6 +147,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         this.hidden = new HashSet<>(cfg.hiddenApps);
         this.showHomeSettings = cfg.showHomeSettingsShortcut;
         this.reducedMotion = cfg.reducedMotion;
+        this.rowsBelowDock = cfg.rowsBelowDock;
         // Tiles keep their identity across reload(), so a focused tile stays on its app instead of
         // its view being rebound to whatever app now sits in that slot.
         setHasStableIds(true);
@@ -206,7 +227,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         float density = parent.getResources().getDisplayMetrics().density;
         int width = parent.getWidth() > 0 ? parent.getWidth() : parent.getMeasuredWidth();
         int inner = width - parent.getPaddingLeft() - parent.getPaddingRight();
-        int w = tileWidthPx(inner, dockSize, density), h = tileHeightPx(w);
+        int w = tileWidthPx(inner, parent.getHeight(), dockSize, rowsBelowDock, density), h = tileHeightPx(w);
         View card = v.findViewById(R.id.card);
         ViewGroup.LayoutParams cardLp = card.getLayoutParams();
         cardLp.width = w;
@@ -215,7 +236,7 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         View name = v.findViewById(R.id.name);
         ViewGroup.MarginLayoutParams nameLp = (ViewGroup.MarginLayoutParams) name.getLayoutParams();
         nameLp.width = w;
-        nameLp.topMargin = h + Math.round(7 * density);
+        nameLp.topMargin = h + Math.round(4 * density);
         name.setLayoutParams(nameLp);
         return new Holder(v, listener, reducedMotion);
     }
