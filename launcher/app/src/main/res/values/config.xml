@@ -13,6 +13,8 @@
         <item>com.netflix.ninja</item>
         <item>com.google.android.youtube.tv</item>
         <item>com.disney.disneyplus</item>
+        <item>com.amazon.amazonvideo.livingroom</item>
+        <item>au.net.abc.iview</item>
     </string-array>
 
     <!-- Apps never shown as tiles (e.g. the Live TV app, which the Inputs menu already covers). -->
@@ -54,11 +56,11 @@
          with an app set here, a red "VPN off" badge also shows while no VPN is up. -->
     <string name="vpn_app" translatable="false"></string>
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. -->
-    <integer name="rows_below_dock">0</integer>
+    <integer name="rows_below_dock">1</integer>
 
     <!-- Tiles per row in the grid; the dock always has this many slots. Tiles are 180dp wide at 4 columns and
          shrink to fit from 5 up (about 144dp at 5, 117dp at 6 on a 1080p TV). -->
-    <integer name="columns">4</integer>
+    <integer name="columns">6</integer>
 
     <!-- "Default home" tile that opens Android's home-screen picker, for TVs whose settings have one
          (most Android TVs don't; the tile only appears when the page exists). Off by default. -->
