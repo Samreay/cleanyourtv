@@ -19,4 +19,7 @@
     <string name="not_available">No disponible en aquest televisor</string>
     <string name="cant_open">No s\'ha pogut obrir %1$s</string>
     <string name="dream_name">Rellotge</string>
+    <string name="reorder">Reordena les aplicacions</string>
+    <string name="reorder_hint">Les fletxes mouen l\'aplicació. D\'acord per deixar-la, Enrere per cancel·lar.</string>
+    <string name="reorder_not_saved">No s\'ha pogut desar el nou ordre</string>
 </resources>

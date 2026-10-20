@@ -46,4 +46,7 @@
     <string name="card_state_new">جديدة</string>
     <string name="card_state_new_key">مفتاح جديد</string>
     <string name="card_state_new_label">اسم جديد</string>
+    <string name="reorder">إعادة ترتيب التطبيقات</string>
+    <string name="reorder_hint">الأسهم تحرّك التطبيق. اضغط موافق لتثبيته، أو رجوع للإلغاء.</string>
+    <string name="reorder_not_saved">تعذّر حفظ الترتيب الجديد</string>
 </resources>

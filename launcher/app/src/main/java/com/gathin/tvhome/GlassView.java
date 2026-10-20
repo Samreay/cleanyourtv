@@ -28,6 +28,9 @@ public class GlassView extends View {
     private final RectF ring = new RectF();
     private final float density;
     private float radius;
+    /** Reorder: the tile under the glass is being carried; rim and glow turn blue. */
+    private boolean lifted;
+    private static final int LIFTED_RGB = 0x6EC1FF;
 
     public GlassView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -40,6 +43,15 @@ public class GlassView extends View {
         // Cache the highlight as a texture. The spring only changes translation, so the GPU moves it without
         // replaying the glow's strokes on every frame (they are software-heavy on the MT5895).
         setLayerType(LAYER_TYPE_HARDWARE, null);
+    }
+
+    /** Shows (true) or clears the reorder "carrying" look. One redraw of the cached layer, no animation. */
+    void setLifted(boolean lifted) {
+        if (this.lifted == lifted) return;
+        this.lifted = lifted;
+        rim.setColor(lifted ? 0xFF000000 | LIFTED_RGB : 0xF2FFFFFF);
+        rim.setStrokeWidth((lifted ? 2.5f : 1.5f) * density);
+        invalidate();
     }
 
     /** Corner radius of the focused tile as drawn (its radius times its focus scale). */
@@ -68,7 +80,8 @@ public class GlassView extends View {
         for (int i = 0; i < GLOW_STEPS; i++) {
             float o = (i + 0.5f) * step;
             float t = 1f - o / inset;
-            glow.setColor(Math.round(GLOW_ALPHA * t * t) << 24 | 0xFFFFFF);
+            int alpha = Math.round((lifted ? GLOW_ALPHA * 2 : GLOW_ALPHA) * t * t);
+            glow.setColor(Math.min(255, alpha) << 24 | (lifted ? LIFTED_RGB : 0xFFFFFF));
             ring.set(rect.left - o, rect.top - o, rect.right + o, rect.bottom + o);
             canvas.drawRoundRect(ring, radius + o, radius + o, glow);
         }

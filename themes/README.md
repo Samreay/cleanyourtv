@@ -46,6 +46,13 @@ is ignored, and a file that doesn't parse is ignored as a whole, so a theme can 
 under about 300 KB: the text, the hero name and the dock band are designed for black, and a 1 GB TV
 decodes the picture into memory on every Home start. Pictures larger than the screen are downsampled.
 
+## Reorder on the TV
+
+The two-arrow button in the top bar picks up the last focused tile: arrows move it (Left and Right wrap across
+rows), OK places it and saves, Back puts everything back. The order is kept in the launcher's private files and
+wins over `dock_apps` until `dock_apps` itself changes (a rebuild or a pushed theme), which starts over from the
+new list. New apps join at the end.
+
 ## Reduced motion
 
 `"reduced_motion": true` keeps the look but makes the movement snappy and minimal: the highlight

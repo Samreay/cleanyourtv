@@ -20,4 +20,7 @@
     <string name="cant_open">Impossible d\'ouvrir %1$s</string>
     <string name="date_format">EEEE d MMMM</string>
     <string name="dream_name">Horloge</string>
+    <string name="reorder">Réorganiser les applis</string>
+    <string name="reorder_hint">Les flèches déplacent l\'appli. OK pour la poser, Retour pour annuler.</string>
+    <string name="reorder_not_saved">Impossible d\'enregistrer le nouvel ordre</string>
 </resources>

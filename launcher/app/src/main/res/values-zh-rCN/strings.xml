@@ -20,4 +20,7 @@
     <string name="cant_open">无法打开 %1$s</string>
     <string name="date_format">M月d日 EEEE</string>
     <string name="dream_name">时钟</string>
+    <string name="reorder">调整应用顺序</string>
+    <string name="reorder_hint">方向键移动应用，按确定放下，按返回取消。</string>
+    <string name="reorder_not_saved">无法保存新顺序</string>
 </resources>

@@ -154,6 +154,8 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     private final int rowsBelowDock;
     private final boolean dockRow;
     private final List<Entry> items = new ArrayList<>();
+    /** The owner's saved order (reorder button, Order): key -> rank. Empty when there is none or it no longer applies. */
+    private Map<String, Integer> savedRanks = Collections.emptyMap();
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
@@ -199,6 +201,9 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
             }
         }
         Collections.sort(fresh, (a, b) -> {
+            // The owner's own order first; tiles it does not know (new installs) follow by the rule below.
+            int saved = Order.compare(savedRanks, a.component.flattenToShortString(), b.component.flattenToShortString());
+            if (saved != 0) return saved;
             int fa = favourites.indexOf(a.pkg), fb = favourites.indexOf(b.pkg);
             if (fa >= 0 || fb >= 0) {
                 if (fa < 0) return 1;
@@ -319,6 +324,47 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
     @Override
     public long getItemId(int position) {
         return items.get(position).component.flattenToShortString().hashCode();
+    }
+
+    /** Uses this saved order from the next reload() (Order.ranks). */
+    void setSavedOrder(Map<String, Integer> ranks) {
+        savedRanks = ranks;
+    }
+
+    /** Tiles that can be moved: everything but the "Default home" tile, which always stays last. */
+    int movableCount() {
+        int n = items.size();
+        return n > 0 && items.get(n - 1).kind == Entry.HOME_SETTINGS ? n - 1 : n;
+    }
+
+    /** Keys of the movable tiles in their current order, for Order. */
+    List<String> movableKeys() {
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < movableCount(); i++) keys.add(items.get(i).component.flattenToShortString());
+        return keys;
+    }
+
+    /** Moves one tile; the others shift up or down by one. Stable ids keep the moved tile's view (and focus). */
+    void move(int from, int to) {
+        if (from == to || from < 0 || to < 0 || from >= movableCount() || to >= movableCount()) return;
+        items.add(to, items.remove(from));
+        notifyItemMoved(from, to);
+        // With a dock row, names are shown by position: rebind the tiles whose side of the dock edge changed.
+        if (dockRow && (from < dockSize || to < dockSize)) {
+            int lo = Math.min(from, to), hi = Math.max(from, to);
+            notifyItemRangeChanged(lo, hi - lo + 1);
+        }
+    }
+
+    /** A copy of the current order, for restore() when a move is cancelled. */
+    List<Entry> snapshot() {
+        return new ArrayList<>(items);
+    }
+
+    void restore(List<Entry> snapshot) {
+        items.clear();
+        items.addAll(snapshot);
+        notifyDataSetChanged();
     }
 
     /** Stable key for the app at a position (its component), or null. */

@@ -21,4 +21,7 @@
     <string name="date_format">EEEE, d. MMMM</string>
     <string name="dream_name">Uhr</string>
     <string name="input_key_service_description">Öffnet die Quellenauswahl, wenn die Input-Taste der Fernbedienung gedrückt wird.</string>
+    <string name="reorder">Apps anordnen</string>
+    <string name="reorder_hint">Pfeiltasten verschieben die App. OK zum Ablegen, Zurück zum Abbrechen.</string>
+    <string name="reorder_not_saved">Neue Reihenfolge konnte nicht gespeichert werden</string>
 </resources>

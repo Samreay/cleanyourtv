@@ -9,7 +9,8 @@
 
     <!-- Apps pinned first, in this order: the dock row, or the first tiles of the grid with dock_row false. List as
          many as you like (more than one row is fine); every app not listed follows alphabetically. Missing apps
-         are skipped. -->
+         are skipped. An order set on the TV with the reorder button (two arrows, top bar) wins over this list until
+         the list itself changes. -->
     <string-array name="dock_apps">
         <item>com.plexapp.android</item>
         <item>com.netflix.ninja</item>

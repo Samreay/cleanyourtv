@@ -27,4 +27,7 @@
     <string name="input_key_service_description">Otvara izbor ulaza kada se na daljinskom pritisne dugme Input.</string>
     <string name="home_key_name">Dugme Home</string>
     <string name="home_key_description">Dugme Home na daljinskom otvara ovaj početni ekran.</string>
+    <string name="reorder">Promeni redosled aplikacija</string>
+    <string name="reorder_hint">Strelice pomeraju aplikaciju. OK da je postaviš, Nazad za otkazivanje.</string>
+    <string name="reorder_not_saved">Novi redosled nije sačuvan</string>
 </resources>
