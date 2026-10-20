@@ -24,6 +24,8 @@
         <item>com.tcl.tv</item>
         <item>com.tcl.dashboard</item>
         <item>com.tcl.t_solo</item>
+        <item>com.android.tv.settings</item>
+        <item>com.tcl.suspension</item>
     </string-array>
 
     <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
@@ -66,7 +68,7 @@
     <!-- The dock as its own row: a lighter band, no names under the tiles, parked low on the screen with the top
          shelf above it. false makes the dock apps simply the first tiles of one plain grid (still in dock_apps
          order), with names under every tile and the glow behind every focused tile. -->
-    <bool name="dock_row">true</bool>
+    <bool name="dock_row">false</bool>
 
     <!-- The focused dock app's name in large type above the dock. false leaves only the glow, which frees the
          space above the dock for more rows. -->
