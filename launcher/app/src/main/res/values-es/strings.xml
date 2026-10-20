@@ -21,6 +21,6 @@
     <string name="date_format">EEEE d \'de\' MMMM</string>
     <string name="dream_name">Reloj</string>
     <string name="reorder">Reordenar apps</string>
-    <string name="reorder_hint">Las flechas mueven la app. OK para soltarla, Atrás para cancelar.</string>
+    <string name="reorder_hint">OK coge una app, las flechas la mueven, Atrás la suelta. Atrás de nuevo para terminar.</string>
     <string name="reorder_not_saved">No se pudo guardar el nuevo orden</string>
 </resources>

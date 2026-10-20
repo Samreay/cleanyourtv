@@ -48,8 +48,9 @@ decodes the picture into memory on every Home start. Pictures larger than the sc
 
 ## Reorder on the TV
 
-The two-arrow button in the top bar picks up the last focused tile: arrows move it (Left and Right wrap across
-rows), OK places it and saves, Back puts everything back. The order is kept in the launcher's private files and
+The two-arrow button in the top bar turns reorder mode on (blue outline). Move to an app and press OK to pick it
+up, move it with the arrows (Left and Right wrap across rows), and press Back to put it down; repeat for other apps,
+then press Back once more to finish and save. Apps don't open while the mode is on. The order is kept in the launcher's private files and
 wins over `dock_apps` until `dock_apps` itself changes (a rebuild or a pushed theme), which starts over from the
 new list. New apps join at the end.
 

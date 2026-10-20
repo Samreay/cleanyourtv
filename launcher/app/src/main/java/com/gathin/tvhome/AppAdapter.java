@@ -356,17 +356,6 @@ public class AppAdapter extends RecyclerView.Adapter<AppAdapter.Holder> {
         }
     }
 
-    /** A copy of the current order, for restore() when a move is cancelled. */
-    List<Entry> snapshot() {
-        return new ArrayList<>(items);
-    }
-
-    void restore(List<Entry> snapshot) {
-        items.clear();
-        items.addAll(snapshot);
-        notifyDataSetChanged();
-    }
-
     /** Stable key for the app at a position (its component), or null. */
     String keyAt(int position) {
         return position >= 0 && position < items.size() ? items.get(position).component.flattenToShortString() : null;

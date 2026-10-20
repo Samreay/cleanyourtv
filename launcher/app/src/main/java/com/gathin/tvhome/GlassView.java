@@ -28,9 +28,10 @@ public class GlassView extends View {
     private final RectF ring = new RectF();
     private final float density;
     private float radius;
-    /** Reorder: the tile under the glass is being carried; rim and glow turn blue. */
-    private boolean lifted;
-    private static final int LIFTED_RGB = 0x6EC1FF;
+    /** Normal, reorder mode on (blue rim) or a tile being carried in it (thicker blue rim, blue glow). */
+    static final int MODE_NORMAL = 0, MODE_REORDER = 1, MODE_CARRYING = 2;
+    private int mode = MODE_NORMAL;
+    private static final int REORDER_RGB = 0x6EC1FF;
 
     public GlassView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -45,12 +46,12 @@ public class GlassView extends View {
         setLayerType(LAYER_TYPE_HARDWARE, null);
     }
 
-    /** Shows (true) or clears the reorder "carrying" look. One redraw of the cached layer, no animation. */
-    void setLifted(boolean lifted) {
-        if (this.lifted == lifted) return;
-        this.lifted = lifted;
-        rim.setColor(lifted ? 0xFF000000 | LIFTED_RGB : 0xF2FFFFFF);
-        rim.setStrokeWidth((lifted ? 2.5f : 1.5f) * density);
+    /** Switches between the MODE_ looks. One redraw of the cached layer, no animation. */
+    void setMode(int mode) {
+        if (this.mode == mode) return;
+        this.mode = mode;
+        rim.setColor(mode == MODE_NORMAL ? 0xF2FFFFFF : 0xFF000000 | REORDER_RGB);
+        rim.setStrokeWidth((mode == MODE_CARRYING ? 3f : mode == MODE_REORDER ? 2f : 1.5f) * density);
         invalidate();
     }
 
@@ -80,8 +81,9 @@ public class GlassView extends View {
         for (int i = 0; i < GLOW_STEPS; i++) {
             float o = (i + 0.5f) * step;
             float t = 1f - o / inset;
-            int alpha = Math.round((lifted ? GLOW_ALPHA * 2 : GLOW_ALPHA) * t * t);
-            glow.setColor(Math.min(255, alpha) << 24 | (lifted ? LIFTED_RGB : 0xFFFFFF));
+            boolean carrying = mode == MODE_CARRYING;
+            int alpha = Math.round((carrying ? GLOW_ALPHA * 2 : GLOW_ALPHA) * t * t);
+            glow.setColor(Math.min(255, alpha) << 24 | (carrying ? REORDER_RGB : 0xFFFFFF));
             ring.set(rect.left - o, rect.top - o, rect.right + o, rect.bottom + o);
             canvas.drawRoundRect(ring, radius + o, radius + o, glow);
         }

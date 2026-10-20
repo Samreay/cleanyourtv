@@ -126,10 +126,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean promptsPaused;
     /** The Inputs or Module cards dropdown while one is open, so onPause can close it. */
     private PopupWindow openPopup;
-    /** Reorder (top-bar button): key of the tile being carried, or null when not moving. */
+    /** Reorder mode is on (top-bar button). */
+    private boolean reordering;
+    /** Key of the tile being carried in reorder mode, or null. */
     private String movingKey;
-    /** The order before the move, restored by Back. */
-    private List<AppAdapter.Entry> moveSnapshot;
+    /** Tile order when reorder mode started, to save only when something moved. */
+    private List<String> orderAtStart;
     private View btnReorder;
     /** dock_apps as loaded (config.xml or a theme): a saved Order only applies while these are unchanged. */
     private List<String> dockApps;
@@ -342,7 +344,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         btnSettings.setOnClickListener(v -> open(systemIntent(Settings.ACTION_SETTINGS)));
         btnReorder = findViewById(R.id.btnReorder);
-        btnReorder.setOnClickListener(v -> startMove());
+        btnReorder.setOnClickListener(v -> toggleReorder());
         btnSettings.setOnLongClickListener(v -> {
             if (!moduleCards) return false;   // off: a long press does nothing, as before the feature
             showModuleCards();
@@ -488,7 +490,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * ones and cards stay off for this process.
      */
     private void reloadTiles() {
-        finishMove(true);   // an app installed or removed mid-move: keep the move, then rebuild around it
+        endReorder();   // an app installed or removed while reordering: keep the order so far, then rebuild
         // Read these before reload(): rebinding can move focus to the first tile and overwrite them.
         final String returnKey = lastFocusedKey;
         final int returnSlot = lastFocused;
@@ -517,7 +519,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onPause() {
         super.onPause();
-        finishMove(true);   // Home or another app mid-move keeps what was moved so far
+        endReorder();   // Home or another app while reordering keeps the order so far
         unregisterReceiver(packageReceiver);
         handler.removeCallbacks(minuteTick);
         // Nothing of ours stays on screen over another app; an undecided prompt simply returns next time.
@@ -551,45 +553,112 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     // ---- reorder ---------------------------------------------------------------------------------
 
     /**
-     * While a tile is being moved, every key goes here before the tiles see it: arrows move the tile, OK places
-     * it and saves the order, Back puts everything back. Other keys (volume, Home) pass through.
+     * Reorder mode (top-bar button), while it is on every key comes here first:
+     * - nothing carried: arrows move focus as usual; OK on a tile picks it up instead of opening the app;
+     *   Back ends the mode and saves the order.
+     * - a tile carried: arrows move it; Back (or OK) puts it down and the mode stays on for the next one.
+     * Other keys (volume, Home) pass through; leaving the launcher ends the mode and saves.
      */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        if (movingKey == null) return super.dispatchKeyEvent(event);
+        if (!reordering) return super.dispatchKeyEvent(event);
         boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-        switch (event.getKeyCode()) {
-            case KeyEvent.KEYCODE_DPAD_LEFT:
-            case KeyEvent.KEYCODE_DPAD_RIGHT:
-            case KeyEvent.KEYCODE_DPAD_UP:
-            case KeyEvent.KEYCODE_DPAD_DOWN:
-                if (down) moveBy(event.getKeyCode());
-                return true;
-            case KeyEvent.KEYCODE_DPAD_CENTER:
-            case KeyEvent.KEYCODE_ENTER:
-            case KeyEvent.KEYCODE_NUMPAD_ENTER:
-                if (!down) finishMove(true);
-                return true;
-            case KeyEvent.KEYCODE_BACK:
-            case KeyEvent.KEYCODE_ESCAPE:
-                if (!down) finishMove(false);
-                return true;
-            default:
-                return super.dispatchKeyEvent(event);
+        int code = event.getKeyCode();
+        boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
+                || code == KeyEvent.KEYCODE_NUMPAD_ENTER;
+        boolean back = code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE;
+        if (movingKey != null) {
+            switch (code) {
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                case KeyEvent.KEYCODE_DPAD_UP:
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    if (down) moveBy(code);
+                    return true;
+                default:
+                    if (ok || back) {
+                        if (!down) drop();
+                        return true;
+                    }
+                    return super.dispatchKeyEvent(event);
+            }
+        }
+        if (back) {
+            if (!down) endReorder();
+            return true;
+        }
+        int pos = focusedTilePosition();
+        if (ok && pos >= 0) {
+            if (!down) pickUp(pos);
+            return true;   // never opens the app while reordering
+        }
+        return super.dispatchKeyEvent(event);   // arrows navigate; OK on a top-bar pill works as usual
+    }
+
+    /** Adapter position of the focused tile, or -1 when focus is not on a tile. */
+    private int focusedTilePosition() {
+        View f = getCurrentFocus();
+        if (f == null || f.getId() != R.id.card || !(f.getParent() instanceof View)) return -1;
+        return grid.getChildAdapterPosition((View) f.getParent());
+    }
+
+    /** The reorder button: turns the mode on (focus goes back to the last tile), or off again. */
+    private void toggleReorder() {
+        if (reordering) {
+            endReorder();
+            return;
+        }
+        int n = adapter.movableCount();
+        if (n < 2) return;
+        reordering = true;
+        orderAtStart = adapter.movableKeys();
+        glass.setMode(GlassView.MODE_REORDER);
+        btnReorder.setActivated(true);
+        focusTile(Math.max(0, Math.min(lastFocused, n - 1)));
+        Toast.makeText(this, R.string.reorder_hint, Toast.LENGTH_LONG).show();
+    }
+
+    private void pickUp(int pos) {
+        if (pos >= adapter.movableCount()) return;   // the "Default home" tile stays put
+        movingKey = adapter.keyAt(pos);
+        glass.setMode(GlassView.MODE_CARRYING);
+        dimOthers();
+    }
+
+    /** While a tile is carried, every other tile is dimmed so the carried one stands out; otherwise all are full. */
+    private void dimOthers() {
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View item = grid.getChildAt(i);
+            int pos = grid.getChildAdapterPosition(item);
+            boolean carried = movingKey != null && movingKey.equals(adapter.keyAt(pos));
+            item.setAlpha(movingKey == null || carried ? 1f : 0.45f);
         }
     }
 
-    /** Picks up the last focused tile (or the first) and starts moving it. */
-    private void startMove() {
-        int n = adapter.movableCount();
-        if (n < 2 || movingKey != null) return;
-        int pos = Math.max(0, Math.min(lastFocused, n - 1));
-        movingKey = adapter.keyAt(pos);
-        moveSnapshot = adapter.snapshot();
-        glass.setLifted(true);
-        btnReorder.setActivated(true);
-        focusTile(pos);
-        Toast.makeText(this, R.string.reorder_hint, Toast.LENGTH_LONG).show();
+    /** Puts the carried tile down where it is; the mode stays on. */
+    private void drop() {
+        movingKey = null;
+        if (reordering) glass.setMode(GlassView.MODE_REORDER);
+        dimOthers();
+    }
+
+    /** Ends the mode and saves the order if it changed since the mode started. */
+    private void endReorder() {
+        if (!reordering) return;
+        drop();
+        reordering = false;
+        glass.setMode(GlassView.MODE_NORMAL);
+        btnReorder.setActivated(false);
+        List<String> keys = adapter.movableKeys();
+        List<String> before = orderAtStart;
+        orderAtStart = null;
+        if (keys.equals(before)) return;   // nothing moved
+        Order order = new Order(Order.dockKey(dockApps), keys);
+        if (Order.save(Order.file(this), order)) {
+            adapter.setSavedOrder(Order.ranks(order, dockApps));
+        } else {
+            Toast.makeText(this, R.string.reorder_not_saved, Toast.LENGTH_SHORT).show();
+        }
     }
 
     /**
@@ -600,7 +669,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int from = adapter.positionOf(movingKey);
         int n = adapter.movableCount();
         if (from < 0 || from >= n) {
-            finishMove(true);
+            drop();
             return;
         }
         int to;
@@ -646,35 +715,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     return;
                 }
                 focusTile(pos);
+                dimOthers();   // views that came into view or were rebound during the move
             }
         });
-    }
-
-    /** Ends a move: keep saves the new order (if it changed); otherwise the order from before the move comes back. */
-    private void finishMove(boolean keep) {
-        if (movingKey == null) return;
-        String key = movingKey;
-        List<AppAdapter.Entry> before = moveSnapshot;
-        movingKey = null;
-        moveSnapshot = null;
-        glass.setLifted(false);
-        btnReorder.setActivated(false);
-        if (!keep) {
-            keepScroll(() -> adapter.restore(before));
-            int pos = adapter.positionOf(key);
-            if (pos >= 0) refocusAfterLayout(pos);
-            return;
-        }
-        List<String> keys = adapter.movableKeys();
-        List<String> old = new ArrayList<>();
-        for (AppAdapter.Entry e : before) old.add(e.component.flattenToShortString());
-        if (old.subList(0, Math.min(old.size(), keys.size())).equals(keys)) return;   // nothing moved
-        Order order = new Order(Order.dockKey(dockApps), keys);
-        if (Order.save(Order.file(this), order)) {
-            adapter.setSavedOrder(Order.ranks(order, dockApps));
-        } else {
-            Toast.makeText(this, R.string.reorder_not_saved, Toast.LENGTH_SHORT).show();
-        }
     }
 
     // ---- glass highlight -------------------------------------------------------------------------
@@ -1236,7 +1279,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     private void showCardPrompt() {
         if (!moduleCards || !tilesReady || promptsPaused || cardPrompt != null || !hasWindowFocus() || isFinishing()
-                || movingKey != null) return;
+                || reordering) return;
         if (cards.isEmpty() || !CardFeature.working()) return;
         CardFeature.run(() -> {
             showCardPromptNow();

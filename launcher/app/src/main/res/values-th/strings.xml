@@ -22,6 +22,6 @@
     <string name="dream_name">นาฬิกา</string>
 
     <string name="reorder">จัดเรียงแอป</string>
-    <string name="reorder_hint">ใช้ปุ่มลูกศรเพื่อย้ายแอป กด OK เพื่อวาง หรือย้อนกลับเพื่อยกเลิก</string>
+    <string name="reorder_hint">กด OK เพื่อเลือกแอป ใช้ลูกศรเพื่อย้าย กดย้อนกลับเพื่อวาง กดย้อนกลับอีกครั้งเพื่อเสร็จสิ้น</string>
     <string name="reorder_not_saved">บันทึกลำดับใหม่ไม่ได้</string>
 </resources>
