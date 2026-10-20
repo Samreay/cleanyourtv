@@ -217,6 +217,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (cfg.wallpaper != null) showWallpaper(cfg.wallpaper);
         glass = findViewById(R.id.glass);
         ambient = findViewById(R.id.ambient);
+        // The glow is one bitmap, so its alpha can be applied while drawing it. Otherwise every frame of
+        // a fade renders it into a full-screen offscreen buffer first (upstream 4cc83ce).
+        ambient.forceHasOverlappingRendering(false);
         heroName = findViewById(R.id.heroName);
         // dock_title false: the name above the dock never shows; showHero still moves the glow.
         if (!cfg.dockTitle) heroName.setVisibility(View.GONE);
