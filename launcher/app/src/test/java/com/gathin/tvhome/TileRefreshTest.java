@@ -60,6 +60,25 @@ public class TileRefreshTest {
     }
 
     @Test
+    public void homePressedInAnAppRefocusesWithoutRebuilding() {
+        // onNewIntent calls onHomeAgain only while Home is stopped; on screen (#552) it just focuses the first tile.
+        TileRefresh r = shown();
+        r.onStop();
+        r.onHomeAgain();
+        r.onStart();
+        assertEquals(TileRefresh.Action.REFOCUS, r.onResume(false));
+    }
+
+    @Test
+    public void tilesDroppedForMemoryAreRebuiltOnReturn() {
+        TileRefresh r = shown();
+        r.onStop();
+        r.invalidate();
+        r.onStart();
+        assertEquals(TileRefresh.Action.REBUILD, r.onResume(false));
+    }
+
+    @Test
     public void pauseWithoutStopChangesNothing() {
         TileRefresh r = shown();
         assertEquals(TileRefresh.Action.NOTHING, r.onResume(false));

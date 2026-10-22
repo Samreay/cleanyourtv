@@ -30,6 +30,11 @@ final class TileRefresh {
         refocus = true;
     }
 
+    /** The tiles were dropped (onTrimMemory): build them again on the way back. */
+    void invalidate() {
+        stale = true;
+    }
+
     /**
      * A package broadcast. True when Home is on screen and should rebuild now; while it is in the background the
      * rebuild waits for {@link #onResume}, so a run of app updates costs one rebuild instead of one each.
