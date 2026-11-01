@@ -134,7 +134,7 @@
          did not; Moonlight with two controllers put both on player 1, docs/TROUBLESHOOTING.md). The price: the
          remote buttons below do nothing until the controller disconnects. A voice
          remote that reports a joystick does not count. A theme can set it ("gamepad_passthrough"). -->
-    <bool name="gamepad_passthrough">false</bool>
+    <bool name="gamepad_passthrough">true</bool>
 
     <!-- With key_filter on, the key helpers swallow Volume Up/Down and repeat a held one themselves. For firmware
          that applies a volume key before the filter and again when the helper hands it back, so one tap moves two
@@ -330,11 +330,11 @@
     <!-- true colours the Wi-Fi pill's icon green while the TV is online and leaves it white while it is not (dark on
          the focused pill either way), so the connection shows at a glance, also as an icon-only button. Can also be
          set with "wifi_status_color": true in a theme's config.json. -->
-    <bool name="wifi_status_color">false</bool>
+    <bool name="wifi_status_color">true</bool>
     <!-- With wifi_status_color: the icon orange while the TV is connected but Android has not reached the internet
          through it (a hotel or holiday-park Wi-Fi waiting for its login page) and red while it is offline, instead
          of white for both. Can also be set with "wifi_status_warnings": true in a theme's config.json. -->
-    <bool name="wifi_status_warnings">false</bool>
+    <bool name="wifi_status_warnings">true</bool>
     <!-- The app library as a round button in the top bar, beside Settings (app_library must be on too). -->
     <bool name="library_button">false</bool>
     <!-- The App library pill after the last Home row. false hides it while library_button is on, so the top-bar
@@ -360,7 +360,7 @@
          sleeping device has) and the AV jacks fold behind a "More inputs" row that expands the rest. An HDMI row
          whose state the TV cannot be trusted with stays. Off by default: every input is listed. Can also be set
          with "inputs_connected_only" in a theme. -->
-    <bool name="inputs_connected_only">false</bool>
+    <bool name="inputs_connected_only">true</bool>
     <!-- Names under every tile, not only the focused one: unfocused names stay dimmed, the focused one is full white.
          With dock_row the band grows down to hold the dock's names too. -->
     <bool name="always_show_names">false</bool>
@@ -381,7 +381,7 @@
     <!-- Hold OK on a tile opens a small menu: Move (picks the tile up for reordering), Remove from Home (only with
          app_library) and App info. false keeps the old behaviour: holding OK opens the app's App info page.
          Can also be set with "tile_menu": true in a theme's config.json. -->
-    <bool name="tile_menu">false</bool>
+    <bool name="tile_menu">true</bool>
 
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. Tiles shrink if
          the dock, its title and this many rows would not otherwise fit the screen height. -->
