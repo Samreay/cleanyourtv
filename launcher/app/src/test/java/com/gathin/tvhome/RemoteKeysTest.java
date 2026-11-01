@@ -27,6 +27,33 @@ public class RemoteKeysTest {
         return RemoteKeys.parseHoldAppKeys(Arrays.asList(entries), RemoteKeysTest::keyCode);
     }
 
+    @Test public void inFrontMatchesTheTargetsPackageOnly() {
+        assertTrue(RemoteKeys.inFront("com.vt.tv.tvcenter", "com.vt.tv.tvcenter"));
+        assertTrue(RemoteKeys.inFront("io.github.maxhayim.brightness/.QuickActivity", "io.github.maxhayim.brightness"));
+        assertFalse(RemoteKeys.inFront("com.vt.tv.tvcenter", "com.gathin.tvhome"));
+        assertFalse(RemoteKeys.inFront("com.vt.tv.tvcenter", ""));
+        assertFalse(RemoteKeys.inFront(null, "com.vt.tv.tvcenter"));
+        assertFalse(RemoteKeys.inFront("input:com.vt.source.external/.HdmiInputService/HW2", "com.vt.source.external"));
+    }
+
+    @Test public void frontEntriesAreReadApartFromTheRest() {
+        List<String> entries = Arrays.asList("172:com.vt.tv.tvcenter", "front:172:guide:com.vt.tv.tvcenter",
+                "front:scan:490:com.wbd.hbomax", "hold:172:a.b");
+        assertEquals("com.vt.tv.tvcenter", RemoteKeys.parseAppKeys(entries, RemoteKeysTest::keyCode).get(172));
+        Map<Integer, String> front = RemoteKeys.parseFrontAppKeys(entries, RemoteKeysTest::keyCode);
+        assertEquals(1, front.size());
+        assertEquals("guide:com.vt.tv.tvcenter", front.get(172));
+        assertEquals("com.wbd.hbomax", RemoteKeys.parseFrontAppScancodes(entries).get(490));
+        assertTrue(RemoteKeys.parseAppScancodes(entries).isEmpty());
+    }
+
+    @Test public void guideTargetNamesItsPackage() {
+        assertEquals("com.vt.tv.tvcenter", RemoteKeys.guidePackage("guide:com.vt.tv.tvcenter"));
+        assertNull(RemoteKeys.guidePackage("guide:"));
+        assertNull(RemoteKeys.guidePackage("com.vt.tv.tvcenter"));
+        assertNull(RemoteKeys.guidePackage(null));
+    }
+
     @Test public void keyNamesWorkLikeNumbers() {
         Map<Integer, String> keys = parse("KEYCODE_BUTTON_3:com.google.android.youtube.tv", "KEYCODE_NOT_A_KEY:a.b");
         assertEquals(1, keys.size());
@@ -109,7 +136,7 @@ public class RemoteKeysTest {
         assertEquals("mute", keys.get(190));
         assertEquals("screensaver", keys.get(195));
         assertEquals("sleep", parseHold("hold:190:sleep").get(190));
-        for (String word : new String[] {"back", "home", "recents", "mute", "sleep", "screensaver", "settings", "wifi"}) {
+        for (String word : new String[] {"back", "home", "recents", "mute", "sleep", "screensaver", "settings", "wifi", "library", "ignore"}) {
             assertTrue(word, RemoteKeys.isAction(word));
         }
         assertFalse(RemoteKeys.isAction("com.netflix.ninja"));
@@ -147,7 +174,12 @@ public class RemoteKeysTest {
         });
 
         void down(String button, long at, String holdApp) {
-            presses.down(button, at, 0, holdApp, opened::add);
+            presses.down(button, at, 0, holdApp, this, opened::add);
+        }
+
+        /** A DOWN as one of the two helpers sees it; what it opens is noted with its name. */
+        void down(String helper, String button, long at, String holdApp) {
+            presses.down(button, at, 0, holdApp, helper, target -> opened.add(helper + ": " + target));
         }
 
         void up(String button, long at, long downTime, String app, String holdApp) {
@@ -208,10 +240,85 @@ public class RemoteKeysTest {
         assertTrue(remote.opened.isEmpty());
     }
 
+    @Test public void aHelperUnboundBeforeTheHoldCancelsIt() {
+        Remote remote = new Remote();
+        remote.down("home", "1:190:0", 1000, "hold");
+        remote.presses.release("home");
+        remote.presses.release("home");   // onUnbind, then onDestroy
+        remote.holdTimeout();
+        assertTrue(remote.opened.isEmpty());
+        assertTrue(remote.holds.isEmpty());
+    }
+
+    @Test public void losingOneHelperLeavesTheHoldWithTheOther() {
+        Remote remote = new Remote();
+        remote.down("home", "1:190:0", 1000, "hold");
+        remote.down("input", "1:190:0", 1000, "hold");
+        remote.presses.release("home");
+        remote.holdTimeout();
+        remote.up("1:190:0", 1800, 1000, "tap", "hold");
+        assertEquals(Arrays.asList("input: hold"), remote.opened);
+    }
+
+    @Test public void losingOneHelperKeepsTheOthersTap() {
+        Remote remote = new Remote();
+        remote.down("home", "1:190:0", 1000, "hold");
+        remote.down("input", "1:190:0", 1000, "hold");
+        remote.presses.release("input");
+        remote.up("1:190:0", 1200, 1000, "tap", "hold");
+        remote.holdTimeout();
+        assertEquals(Arrays.asList("tap"), remote.opened);
+    }
+
+    @Test public void aHelperThatStopsFilteringReleasesItsHold() {
+        // gamepad_passthrough drops the key filter when a controller connects: the UP never reaches that helper.
+        Remote remote = new Remote();
+        remote.down("home", "1:190:0", 1000, "hold");
+        remote.down("input", "1:190:0", 1000, "hold");
+        remote.presses.release("home");
+        remote.presses.release("input");
+        remote.holdTimeout();
+        assertTrue(remote.opened.isEmpty());
+    }
+
+    @Test public void anUpAfterTheHoldWasReleasedOpensNothing() {
+        Remote remote = new Remote();
+        remote.down("home", "1:190:0", 1000, "hold");
+        remote.presses.release("home");
+        remote.up("1:190:0", 1200, 1000, "tap", "hold");
+        remote.holdTimeout();
+        // The next press is answered as usual.
+        remote.down("home", "1:190:0", 2000, "hold");
+        remote.up("1:190:0", 2100, 2000, "tap", "hold");
+        assertEquals(Arrays.asList("tap"), remote.opened);
+    }
+
+    @Test public void releasingAHelperLeavesAnotherButtonsHoldAlone() {
+        Remote remote = new Remote();
+        remote.down("home", "1:190:0", 1000, "a.hold");
+        remote.down("input", "1:191:0", 1100, "b.hold");
+        remote.presses.release("home");
+        remote.holdTimeout();
+        assertEquals(Arrays.asList("input: b.hold"), remote.opened);
+    }
+
     @Test public void anUpWithoutItsDownUsesTheEventsDownTime() {
         Remote remote = new Remote();
         remote.up("1:190:0", 1100, 1000, "tap", "hold");
         remote.up("1:191:0", 1700, 1000, "tap", "hold");
         assertEquals(Arrays.asList("tap", "hold"), remote.opened);
+    }
+
+    @Test public void menuReleasedTakesXiaomisInjectedShortPress() {
+        // ACTION_DOWN 0, ACTION_UP 1; FLAG_CANCELED 0x20, FLAG_CANCELED_LONG_PRESS 0x100, FLAG_FROM_SYSTEM 0x8.
+        assertTrue(RemoteKeys.menuReleased(1, 0));
+        assertTrue(RemoteKeys.menuReleased(1, 0x8));
+        assertTrue(RemoteKeys.menuReleased(1, RemoteKeys.XIAOMI_SHORT_MENU_FLAGS));
+        assertFalse(RemoteKeys.menuReleased(0, 0));
+        assertFalse(RemoteKeys.menuReleased(0, RemoteKeys.XIAOMI_SHORT_MENU_FLAGS));
+        // A cancelled press elsewhere, long press or not, still opens nothing.
+        assertFalse(RemoteKeys.menuReleased(1, 0x20));
+        assertFalse(RemoteKeys.menuReleased(1, 0x20 | 0x100 | 0x8));
+        assertFalse(RemoteKeys.menuReleased(1, RemoteKeys.XIAOMI_SHORT_MENU_FLAGS & ~0x4000));
     }
 }

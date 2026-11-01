@@ -33,6 +33,25 @@ and preview channels. They live in the TV provider, behind `TvContract.WatchNext
   without network access. `watch_next_type` 0, 1 and 2 (continue, next, new) all occurred; Jellyfin's
   next-episode rows had no `last_playback_position_millis`. Prime Video's `intent_uri` opened the app at its
   profile picker on a cold start.
+- **Seen on a TCL C6K** (Google TV 14, `UTT2.250416.001 AU02`): the same kind of test build saw 25 Watch Next
+  rows: Crunchyroll 19, Prime Video 3, Netflix 2 and Jellyfin for Android TV 1. All four fill `title`,
+  `season_display_number`, `episode_display_number`, `poster_art_uri`, `intent_uri`, `watch_next_type`,
+  `last_engagement_time_utc_millis`, `last_playback_position_millis` and `duration_millis`; only Crunchyroll and
+  Jellyfin add `episode_title`. `watch_next_type` 0 (continue), 1 (next) and 2 (new, from Prime Video) all
+  appeared. Posters were `https://` except Jellyfin's `content://`. Rows linger: the oldest was six months old,
+  and a "continue" row sat at 99% of its episode, so a reader filters by engagement time and progress.
+  YouTube published no Watch Next rows, only preview channels ("Recommended for you", "Trending", "YouTube
+  Music"). Stremio (`com.stremio.one`) published none either; it keeps a preview channel named "Continue
+  Watching" whose rows carry `last_playback_position_millis` and `duration_millis` but no date column at all, so
+  they cannot be sorted or aged by time.
+- **Seen on a TCL 55C655** (G10, Google TV 12, `STT2.230203.001 AS16`), the same kind of probe with launcherx still
+  enabled: 34 Watch Next rows, RaiPlay (`it.rainet.androidtv`) 17, DAZN 10, Prime Video 5 and Netflix 2; Disney+
+  and Mediaset Infinity, both installed, had none. The newest four were the first four cards of Google TV's own
+  Continue watching row, in the same order, so on this set the stock row comes from the local table. Every poster
+  was `https://` (raiplay.it, Netflix's nflxso.net, Amazon's image CDN), and some RaiPlay rows had none. RaiPlay
+  often puts a tagline in `title` instead of the show's name ("Ogni giorno un nuovo episodio" for one daily
+  series), so a text-only card can be unreadable. The DAZN rows were channels, `watch_next_type` 2, last engaged
+  433 days before. Preview programs: DAZN 55, Prime Video 30, TCL `channelplus` 30, Netflix 16, YouTube 7.
 
 Source: `createSqlParams()` in `packages/providers/TvProvider/src/com/android/providers/tv/TvProvider.java`
 (AOSP) holds the `READ_TV_LISTINGS` and `searchable` logic; both permissions are defined in that

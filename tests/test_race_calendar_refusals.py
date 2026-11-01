@@ -19,6 +19,7 @@ import contextlib
 import datetime
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -34,6 +35,12 @@ RACES = {"MRData": {"RaceTable": {"season": "2026", "Races": [{
     "round": "1", "raceName": "Example Grand Prix", "date": "2026-01-04", "time": "14:00:00Z",
 }]}}}
 RESPONSE = json.dumps(RACES).encode("utf-8")
+THEME = {
+    "greeting_name": "客廳",
+    "custom": {"label": "夜晚", "values": [True, None, {"amount": 7}]},
+    "race_calendar": [{"name": "old calendar"}],
+}
+THEME_BYTES = (json.dumps(THEME, ensure_ascii=False, indent=2) + "\n").replace("\n", "\r\n").encode("utf-8-sig")
 
 
 class FixedDatetime(datetime.datetime):
@@ -109,6 +116,136 @@ class RefusalTest(unittest.TestCase):
             self.assertIn(needle, stderr)
         self.assertTrue(any("Nothing was written" in line for line in stderr.splitlines()), stderr)
 
+    def assert_api_leaves_config(self, payload, expected_status, *needles):
+        for existing in (False, True):
+            with self.subTest(existing=existing):
+                self.config.unlink(missing_ok=True)
+                if existing:
+                    self.config.write_bytes(THEME_BYTES)
+                for stream in (self.err, self.out):
+                    stream.seek(0)
+                    stream.truncate(0)
+                self.stub(body=json.dumps(payload).encode("utf-8"))
+                try:
+                    status, stderr = self.run_main(str(self.theme))
+                    if expected_status == 2:
+                        self.assert_refused(status, stderr, "Jolpica", *needles)
+                    else:
+                        self.assertEqual(status, expected_status, stderr)
+                        for needle in needles:
+                            self.assertIn(needle, stderr)
+                    self.assertEqual(self.out.getvalue(), "")
+                    self.urlopen.assert_called_once()
+                finally:
+                    # Check even when the old code raises: a missing season used to fail AFTER writing.
+                    if existing:
+                        self.assertEqual(self.config.read_bytes(), THEME_BYTES)
+                    else:
+                        self.assertFalse(self.config.exists(), "the refused response created config.json")
+
+    def test_api_missing_season_never_writes(self):
+        for upcoming in (True, False):
+            with self.subTest(upcoming=upcoming):
+                payload = json.loads(RESPONSE)
+                table = payload["MRData"]["RaceTable"]
+                del table["season"]
+                if not upcoming:
+                    table["Races"] = []
+                self.assert_api_leaves_config(payload, 2, "season")
+
+    def test_api_invalid_season_never_writes(self):
+        for value in (None, [], "2026x"):
+            with self.subTest(season=value):
+                payload = json.loads(RESPONSE)
+                payload["MRData"]["RaceTable"]["season"] = value
+                self.assert_api_leaves_config(payload, 2, "season")
+
+    def test_api_invalid_containers_never_write(self):
+        for field in ("RaceTable", "Races"):
+            for value in (None, [], {}) if field == "RaceTable" else (None, {}, "races"):
+                with self.subTest(field=field, value=value):
+                    payload = json.loads(RESPONSE)
+                    if field == "RaceTable":
+                        payload["MRData"][field] = value
+                    else:
+                        payload["MRData"]["RaceTable"][field] = value
+                    self.assert_api_leaves_config(payload, 2, field)
+
+    def test_api_invalid_circuit_or_location_never_writes(self):
+        for circuit, field in ((None, "Circuit"), ([], "Circuit"), ({"Location": None}, "Location")):
+            with self.subTest(circuit=circuit):
+                payload = json.loads(RESPONSE)
+                payload["MRData"]["RaceTable"]["Races"][0]["Circuit"] = circuit
+                self.assert_api_leaves_config(payload, 2, field)
+
+    def test_api_nonobject_race_after_valid_race_never_partially_writes(self):
+        for value in (None, [], "race", 42):
+            with self.subTest(race=value):
+                payload = json.loads(RESPONSE)
+                payload["MRData"]["RaceTable"]["Races"].append(value)
+                self.assert_api_leaves_config(payload, 2, "Races")
+
+    def test_api_missing_name_or_nonnumeric_round_never_writes(self):
+        for field in ("raceName", "round"):
+            with self.subTest(field=field):
+                payload = json.loads(RESPONSE)
+                race = payload["MRData"]["RaceTable"]["Races"][0]
+                if field == "raceName":
+                    del race[field]
+                else:
+                    race[field] = "one"
+                self.assert_api_leaves_config(payload, 2, field)
+                if field == "round":
+                    self.assertNotIn("timestamp", self.err.getvalue())
+
+    def test_api_valid_years_optional_fields_and_unpublished_sessions(self):
+        for year in ("2026", 2026):
+            for optional in ("present", "no Location", "no Circuit"):
+                with self.subTest(year=year, optional=optional):
+                    payload = json.loads(RESPONSE)
+                    table = payload["MRData"]["RaceTable"]
+                    table["season"] = year
+                    race = table["Races"][0]
+                    race["FirstPractice"] = {"date": "2026-01-02"}
+                    race["Qualifying"] = {"date": "2026-01-03", "time": None}
+                    if optional == "present":
+                        race["Circuit"] = {"Location": {"locality": "Example"}}
+                    elif optional == "no Location":
+                        race["Circuit"] = {}
+                    self.config.write_bytes(THEME_BYTES)
+                    for stream in (self.err, self.out):
+                        stream.seek(0)
+                        stream.truncate(0)
+                    self.stub(body=json.dumps(payload).encode("utf-8"))
+                    status, stderr = self.run_main(str(self.theme))
+                    self.assertEqual(status, 0, stderr)
+                    self.assertEqual(stderr, "")
+                    self.assertIn("1 races from the 2026 season", self.out.getvalue())
+                    self.urlopen.assert_called_once()
+                    updated = json.loads(self.config.read_bytes().decode("utf-8"))
+                    self.assertEqual({k: v for k, v in updated.items() if k != "race_calendar"},
+                                     {k: v for k, v in THEME.items() if k != "race_calendar"})
+                    self.assertEqual(updated["race_calendar"], [{
+                        "round": 1, "name": "Example Grand Prix",
+                        "place": "Example" if optional == "present" else "",
+                        "sessions": [{"name": "RACE", "start": "2026-01-04T14:00:00Z"}],
+                    }])
+
+    def test_api_empty_past_or_unpublished_calendar_leaves_config_unchanged(self):
+        for kind in ("empty", "past", "missing time", "unpublished time"):
+            with self.subTest(kind=kind):
+                payload = json.loads(RESPONSE)
+                races = payload["MRData"]["RaceTable"]["Races"]
+                if kind == "empty":
+                    races.clear()
+                elif kind == "past":
+                    races[0]["date"] = "2025-01-04"
+                elif kind == "missing time":
+                    del races[0]["time"]
+                else:
+                    races[0]["time"] = None
+                self.assert_api_leaves_config(payload, 1, "no upcoming races in the 2026 calendar")
+
     def test_a_season_that_is_not_a_year_never_reaches_the_api(self):
         self.stub()
         status, stderr = self.run_main(str(self.theme), "--season", "2027x")
@@ -132,6 +269,83 @@ class RefusalTest(unittest.TestCase):
         status, stderr = self.run_main(str(picture), "--season", "2026")
         self.assert_refused(status, stderr, "there is no theme folder at", str(picture))
         self.urlopen.assert_not_called()
+
+    def test_an_empty_theme_name_is_not_the_directory_it_is_run_from(self):
+        # `race_calendar.py "$THEME"` with THEME unset passes the empty word, and Path("") is Path("."):
+        # a folder that is always there, so the folder check let it through, the run wrote a config.json
+        # into the directory it stood in and exited 0 as if the calendar were in the theme.
+        self.stub()
+        started = os.getcwd()
+        self.addCleanup(os.chdir, started)
+        os.chdir(self.theme)
+        for word in ("", "   "):
+            with self.subTest(word=word):
+                status, stderr = self.run_main(word, "--season", "2026")
+                self.assert_refused(status, stderr, "there is no theme folder in", repr(word),
+                                    "an empty or blank name")
+                self.assertEqual(self.out.getvalue(), "", "the run reported a calendar it did not write")
+                self.assertFalse((self.theme / "config.json").exists(),
+                                 "the run wrote a config.json in the directory it was started from")
+                self.urlopen.assert_not_called()
+
+    def test_a_config_json_that_is_not_json_is_named_and_never_fetches(self):
+        # The theme's own config.json is hand-written, and a typo in it was a JSONDecodeError traceback
+        # whose exit code, 1, is this script's "no race left this season" - so the reader was sent to
+        # --season next year over a missing brace. An empty file is the same shape.
+        self.stub()              # a fetch would succeed, so only the read can stop the run
+        for data in ('{"columns": 5,}', '{"columns": 5', "", '{"greeting_name": "Olohuone" "columns": 5}'):
+            with self.subTest(data=data):
+                self.config.write_text(data, encoding="utf-8")
+                status, stderr = self.run_main(str(self.theme), "--season", "2026")
+                self.assert_refused(status, stderr, "not the JSON a theme's config.json has to be",
+                                    str(self.config))
+                self.urlopen.assert_not_called()
+                self.assertEqual(self.config.read_text(encoding="utf-8"), data)
+
+    def test_a_config_json_that_is_not_utf8_is_the_same_refusal(self):
+        self.stub()
+        data = b'{"greeting_name": "\xff\xfe"}'
+        self.config.write_bytes(data)
+        status, stderr = self.run_main(str(self.theme), "--season", "2026")
+        self.assert_refused(status, stderr, str(self.config), "utf-8")
+        self.urlopen.assert_not_called()
+        self.assertEqual(self.config.read_bytes(), data)
+
+    def test_a_config_json_that_is_not_an_object_is_named(self):
+        # Valid JSON, and `theme["race_calendar"] = races` met it with a TypeError after the fetch.
+        for data, kind in (("[1, 2, 3]", "array"), ('"a theme"', "string"), ("12", "number"), ("null", "null")):
+            with self.subTest(data=data):
+                self.stub()          # a fetch would succeed, so only the read can stop the run
+                self.config.write_text(data, encoding="utf-8")
+                status, stderr = self.run_main(str(self.theme), "--season", "2026")
+                self.assert_refused(status, stderr, f"holds a JSON {kind}, not an object", str(self.config))
+                self.urlopen.assert_not_called()
+                self.assertEqual(self.config.read_text(encoding="utf-8"), data)
+
+    def test_a_config_json_that_is_a_folder_is_named(self):
+        self.stub()
+        self.config.mkdir()
+        status, stderr = self.run_main(str(self.theme), "--season", "2026")
+        self.assert_refused(status, stderr, f"{self.config} is not a file")
+        self.urlopen.assert_not_called()
+
+    def test_a_config_json_that_cannot_be_written_is_named_after_the_fetch(self):
+        # The other half of the same file: the fetch happens first, so this one is not "nothing was
+        # written" - it says the calendar is not in the theme, which is what the reader has to fix.
+        self.stub()
+        original = json.dumps({"columns": 5})
+        self.config.write_text(original, encoding="utf-8")
+        refusal = OSError(28, "No space left on device")
+        with mock.patch.object(Path, "write_text", side_effect=refusal):
+            status, stderr = self.run_main(str(self.theme), "--season", "2026")
+        self.assertEqual(status, 2, stderr)
+        self.assertNotIn("Traceback", stderr)
+        self.assertIn("could not write", stderr)
+        self.assertIn(str(self.config), stderr)
+        self.assertIn("No space left on device", stderr)
+        self.assertIn("is not in the theme", stderr)
+        self.urlopen.assert_called_once()
+        self.assertEqual(self.config.read_text(encoding="utf-8"), original)
 
     def test_a_fetch_that_cannot_connect_says_which_url_and_why(self):
         self.stub(raises=urllib.error.URLError(ConnectionRefusedError(111, "Connection refused")))
